@@ -12,24 +12,39 @@ export async function approve(escrowContract, signer) {
 
 function App() {
   const [escrows, setEscrows] = useState([]);
-  const [account, setAccount] = useState();
+  const [account, setAccount] = useState("");
   const [signer, setSigner] = useState();
 
   useEffect(() => {
     async function getAccounts() {
-      const accounts = await provider.send('eth_requestAccounts', []);
-
+      // const accounts = await provider.send('eth_requestAccounts', []);
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      console.log("account connected: ", accounts[0]);
       setAccount(accounts[0]);
       setSigner(provider.getSigner());
+      // handle accound disconnection or change
+      window.ethereum.on("accountsChanged", accounts => {
+        if (accounts[0] !== undefined || accounts.length > 0) {
+          console.log(`Account connected: ${accounts[0]}`); 
+          setAccount(accounts[0]);
+          setSigner(provider.getSigner());
+        }
+        else {
+          console.log("Account disconnected");
+          setAccount("");
+          setSigner({});
+        }
+      });
     }
-
     getAccounts();
-  }, [account]);
+  }, []);
 
   async function newContract() {
     const beneficiary = document.getElementById('beneficiary').value;
     const arbiter = document.getElementById('arbiter').value;
-    const value = ethers.BigNumber.from(document.getElementById('wei').value);
+    const value = ethers.utils.parseEther(document.getElementById('eth').value);
     const escrowContract = await deploy(signer, arbiter, beneficiary, value);
 
 
@@ -53,8 +68,18 @@ function App() {
     setEscrows([...escrows, escrow]);
   }
 
+  const getAccountName = () => {
+    if (account.length < 1)
+      return "Not logged";
+    else
+      return account.slice(0, 5) + "..." + account.slice(-5);
+  }
+
   return (
     <>
+      <div>
+        <h1>Logged: {getAccountName()}</h1>
+      </div>
       <div className="contract">
         <h1> New Contract </h1>
         <label>
@@ -68,8 +93,8 @@ function App() {
         </label>
 
         <label>
-          Deposit Amount (in Wei)
-          <input type="text" id="wei" />
+          Deposit Amount (in ETH)
+          <input type="text" id="eth" />
         </label>
 
         <div
